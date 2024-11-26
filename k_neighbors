@@ -1,0 +1,35 @@
+> # Load necessary libraries
+> library(dslabs)
+> library(caret)
+> 
+> # Set seed for reproducibility
+> set.seed(1)
+> 
+> # Load the tissue_gene_expression dataset
+> data("tissue_gene_expression")
+> 
+> # Partition the data into training and test sets (p = 0.5)
+> train_index <- createDataPartition(tissue_gene_expression$y, p = 0.5, list = FALSE)
+> train_set <- list(x = tissue_gene_expression$x[train_index, ],
++                   y = tissue_gene_expression$y[train_index])
+> test_set <- list(x = tissue_gene_expression$x[-train_index, ],
++                  y = tissue_gene_expression$y[-train_index])
+> 
+> # Define the range of k values
+> k_values <- seq(1, 11, 2)
+> 
+> # Perform KNN and calculate accuracy for each k
+> accuracies <- sapply(k_values, function(k) {
++     # Train the KNN model
++     model <- knn3(train_set$x, train_set$y, k = k)
++     
++     # Predict on the test set
++     predictions <- predict(model, test_set$x, type = "class")
++     
++     # Calculate accuracy
++     mean(predictions == test_set$y)
++ })
+> 
+> # Output results
+> results <- data.frame(k = k_values, Accuracy = accuracies)
+> print(results)
