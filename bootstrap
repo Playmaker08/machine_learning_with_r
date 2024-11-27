@@ -1,0 +1,84 @@
+# Load necessary libraries
+library(dslabs)
+library(caret)
+
+# Load the mnist_27 dataset
+data(mnist_27)
+
+# Set the seed for reproducibility
+set.seed(1995)
+
+# Create bootstrap samples (indexes)
+indexes <- createResample(mnist_27$train$y, 10)
+
+# Count occurrences of 3, 4, and 7 in the first resampled index
+counts <- table(indexes[[1]])
+result_3 <- counts["3"]
+result_4 <- counts["4"]
+result_7 <- counts["7"]
+
+# Display the results
+result_3 <- ifelse(is.na(result_3), 0, result_3) # Handle if 3 does not appear
+result_4 <- ifelse(is.na(result_4), 0, result_4) # Handle if 4 does not appear
+result_7 <- ifelse(is.na(result_7), 0, result_7) # Handle if 7 does not appear
+
+cat("Number of times 3 appears:", result_3, "\n")
+cat("Number of times 4 appears:", result_4, "\n")
+cat("Number of times 7 appears:", result_7, "\n")
+
+
+# Calculate the total number of times 3 appears across all resampled indexes
+total_count_3 <- sum(sapply(indexes, function(x) sum(x == 3)))
+
+cat("Total number of times 3 appears:", total_count_3, "\n")
+
+
+# Set the seed for reproducibility
+set.seed(1)
+
+# Parameters
+n <- 100       # Size of each dataset
+reps <- 10000  # Number of repetitions
+
+# Monte Carlo simulation
+quantiles <- replicate(reps, {
+  y <- rnorm(n, mean = 0, sd = 1)        # Generate random dataset
+  quantile(y, 0.75)                     # Calculate 75th quantile
+})
+
+# Calculate expected value and standard error
+expected_value <- mean(quantiles)
+standard_error <- sd(quantiles)
+
+# Output the results
+cat("Expected value:", round(expected_value, 3), "\n")
+cat("Standard error:", round(standard_error, 3), "\n")
+
+
+# Set the seed for reproducibility
+set.seed(1)
+
+# Generate the dataset
+y <- rnorm(100, mean = 0, sd = 1)
+
+# Reset the seed for bootstrap
+set.seed(1)
+
+# Number of bootstrap samples
+bootstrap_reps <- 10000
+
+# Perform bootstrap sampling
+bootstrap_quantiles <- replicate(bootstrap_reps, {
+  sample_y <- sample(y, size = length(y), replace = TRUE)
+  quantile(sample_y, 0.75)
+})
+
+# Calculate expected value and standard error
+bootstrap_expected_value <- mean(bootstrap_quantiles)
+bootstrap_standard_error <- sd(bootstrap_quantiles)
+
+# Output the results
+cat("Expected value:", round(bootstrap_expected_value, 3), "\n")
+cat("Standard error:", round(bootstrap_standard_error, 3), "\n")
+
+
