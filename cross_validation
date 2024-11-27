@@ -1,0 +1,57 @@
+# Set the seed and parameters
+set.seed(1996)
+n <- 1000
+p <- 10000
+
+# Generate data
+x <- matrix(rnorm(n * p), n, p)
+colnames(x) <- paste("x", 1:ncol(x), sep = "_")
+y <- rbinom(n, 1, 0.5)
+
+# Perform t-tests
+pvals <- rep(0, ncol(x))
+for (i in 1:ncol(x)) {
+  pvals[i] <- t.test(x[, i][y == 0], x[, i][y == 1], var.equal = TRUE)$p.value
+}
+
+# Identify predictors with p-value < 0.01
+ind <- which(pvals < 0.01)
+length(ind)  # Number of significant predictors
+
+
+## Here's the R code to calculate the accuracy after redefining x_subset to include only the statistically significant predictors and re-running the cross-validation:
+
+# Load necessary libraries
+library(tidyverse)
+library(caret)
+
+# Set the seed and parameters
+set.seed(1996)
+n <- 1000
+p <- 10000
+
+# Generate data
+x <- matrix(rnorm(n * p), n, p)
+colnames(x) <- paste("x", 1:ncol(x), sep = "_")
+y <- factor(rbinom(n, 1, 0.5))
+
+# Perform t-tests to identify significant predictors
+pvals <- rep(0, ncol(x))
+for (i in 1:ncol(x)) {
+  pvals[i] <- t.test(x[, i][y == 0], x[, i][y == 1], var.equal = TRUE)$p.value
+}
+
+# Identify predictors with p-value < 0.01
+ind <- which(pvals < 0.01)
+x_subset <- x[, ind]
+
+# Set seed for reproducibility and perform cross-validation
+set.seed(1)
+fit <- train(x_subset, y, method = "glm", trControl = trainControl(method = "cv", number = 5))
+
+# Output accuracy
+fit$results$Accuracy
+
+
+
+
