@@ -1,1 +1,309 @@
+## SETTING: The Titanic was a British ocean liner that struck an iceberg and sunk on its maiden voyage in 1912 from the United Kingdom to New York. More than 1,500 of the estimated 2,224 passengers and crew died in the accident, making this one of the largest maritime disasters ever outside of war. The ship carried a wide range of passengers of all ages and genders, from luxury travelers in first class to immigrants in the lower classes. However, not all passengers were equally likely to survive the accident. You will use real data about a selection of 891 passengers to predict which passengers survived.
 
+install.packages("titanic")
+library(titanic)    # loads titanic_train data frame
+library(caret)
+library(tidyverse)
+library(rpart)
+
+# 3 significant digits
+options(digits = 3)
+
+# clean the data - `titanic_train` is loaded with the titanic package
+titanic_clean <- titanic_train %>%
+    mutate(Survived = factor(Survived),
+           Embarked = factor(Embarked),
+           Age = ifelse(is.na(Age), median(Age, na.rm = TRUE), Age), # NA age to median age
+           FamilySize = SibSp + Parch + 1) %>%    # count family members
+    select(Survived,  Sex, Pclass, Age, Fare, SibSp, Parch, FamilySize, Embarked)
+
+
+## set the seed to 42, then use the caret package to create a 20% data partition based on the Survived column. Assign the 20% partition to test_set and the remaining 80% partition to train_set. How many observations are in the training set? Test set?
+set.seed(42) 
+test_index <- createDataPartition(titanic_clean$Survived, times = 1, p = 0.2, list = FALSE) # create a 20% test set
+test_set <- titanic_clean[test_index,]
+train_set <- titanic_clean[-test_index,]
+nrow(train_set)
+        
+## accuracy of guessing method
+set.seed(3)
+# guess with equal probability of survival
+guess <- sample(c(0,1), nrow(test_set), replace = TRUE)
+mean(guess == test_set$Survived)
+
+## Find the proportion of training set males/females survived
+train_set %>%
+    group_by(Sex) %>%
+    summarize(Survived = mean(Survived == 1)) %>%
+    filter(Sex == "female") %>%
+    pull(Survived)
+
+train_set %>%
+    group_by(Sex) %>%
+    summarize(Survived = mean(Survived == 1)) %>%
+    filter(Sex == "male") %>%
+    pull(Survived)
+
+
+## Calculate accuracy of sex-based prediction method
+# Calculate survival rates by sex in the training set
+sex_survival_rate <- train_set %>%
+    group_by(Sex) %>%
+    summarize(Survived = mean(Survived == 1))
+
+# Predict survival in the test set based on the survival rate
+predicted <- ifelse(test_set$Sex == "female" & sex_survival_rate$Survived[sex_survival_rate$Sex == "female"] > 0.5, 1,
+                    ifelse(test_set$Sex == "male" & sex_survival_rate$Survived[sex_survival_rate$Sex == "male"] > 0.5, 1, 0))
+
+# Calculate accuracy
+mean(predicted == test_set$Survived)
+
+
+## Determine which passenger class(es) (Pclass) had a survival probability greater than 50% in the training set:
+# Calculate survival rates by class in the training set
+class_survival_rate <- train_set %>%
+    group_by(Pclass) %>%
+    summarize(Survived = mean(Survived == 1))
+
+# Filter classes where survival rate is greater than 50%
+class_survival_rate %>%
+    filter(Survived > 0.5)
+
+
+## Calculate accuracy of class-based prediction method
+# Calculate survival rates by class in the training set
+class_survival_rate <- train_set %>%
+    group_by(Pclass) %>%
+    summarize(Survived = mean(Survived == 1))
+
+# Predict survival in the test set based on the survival rate for each class
+predicted <- ifelse(test_set$Pclass == 1 & class_survival_rate$Survived[class_survival_rate$Pclass == 1] > 0.5, 1,
+                    ifelse(test_set$Pclass == 2 & class_survival_rate$Survived[class_survival_rate$Pclass == 2] > 0.5, 1,
+                           ifelse(test_set$Pclass == 3 & class_survival_rate$Survived[class_survival_rate$Pclass == 3] > 0.5, 1, 0)))
+
+# Calculate accuracy
+mean(predicted == test_set$Survived)
+
+
+## determine which combinations of sex and passenger class had a survival probability greater than 50% in the training set:
+# Group passengers by sex and class, then calculate survival rates
+sex_class_survival_rate <- train_set %>%
+    group_by(Sex, Pclass) %>%
+    summarize(Survived = mean(Survived == 1), .groups = 'drop')
+
+# Filter combinations where survival rate is greater than 50%
+sex_class_survival_rate %>%
+    filter(Survived > 0.5)
+
+
+## predict survival based on both sex and passenger class, and calculate the accuracy on the test set
+# Calculate survival rates by sex and class in the training set
+sex_class_survival_rate <- train_set %>%
+    group_by(Sex, Pclass) %>%
+    summarize(SurvivalRate = mean(Survived == 1), .groups = 'drop')
+
+# Predict survival in the test set based on the survival rate for each sex/class combination
+predicted <- test_set %>%
+    left_join(sex_class_survival_rate, by = c("Sex", "Pclass")) %>%
+    mutate(Predicted = ifelse(SurvivalRate > 0.5, 1, 0)) %>%
+    pull(Predicted)
+
+# Calculate accuracy
+accuracy <- mean(predicted == test_set$Survived)
+
+# Output accuracy
+accuracy
+
+
+## Use confusionMatrix() in R to calculate the required metrics for the sex model, class model, and combined sex and class model
+# Load necessary library
+library(caret)
+
+# Convert predictions and survival status to factors
+test_set$Survived <- factor(test_set$Survived, levels = c(0, 1))
+
+# Sex model predictions
+sex_model_pred <- ifelse(test_set$Sex == "female", 1, 0)
+sex_model_pred <- factor(sex_model_pred, levels = c(0, 1))
+
+# Class model predictions
+class_model_pred <- ifelse(test_set$Pclass == 1 & class_survival_rate$Survived[class_survival_rate$Pclass == 1] > 0.5, 1,
+                           ifelse(test_set$Pclass == 2 & class_survival_rate$Survived[class_survival_rate$Pclass == 2] > 0.5, 1,
+                                  ifelse(test_set$Pclass == 3 & class_survival_rate$Survived[class_survival_rate$Pclass == 3] > 0.5, 1, 0)))
+class_model_pred <- factor(class_model_pred, levels = c(0, 1))
+
+# Combined sex and class model predictions
+combined_model_pred <- test_set %>%
+    left_join(sex_class_survival_rate, by = c("Sex", "Pclass")) %>%
+    mutate(Predicted = ifelse(SurvivalRate > 0.5, 1, 0)) %>%
+    pull(Predicted)
+combined_model_pred <- factor(combined_model_pred, levels = c(0, 1))
+
+# Confusion matrices for all models
+sex_confusion <- confusionMatrix(sex_model_pred, test_set$Survived)
+class_confusion <- confusionMatrix(class_model_pred, test_set$Survived)
+combined_confusion <- confusionMatrix(combined_model_pred, test_set$Survived)
+
+# Output confusion matrices
+cat("Sex Model Confusion Matrix:\n")
+print(sex_confusion)
+
+cat("\nClass Model Confusion Matrix:\n")
+print(class_confusion)
+
+cat("\nCombined Sex and Class Model Confusion Matrix:\n")
+print(combined_confusion)
+
+
+## use the F_meas() function in R to calculate the F1 scores for the sex model, class model, and combined sex and class model
+# Load necessary library
+library(caret)
+
+# Convert predictions to factors
+sex_model_pred <- factor(ifelse(test_set$Sex == "female", 1, 0), levels = c(0, 1))
+class_model_pred <- factor(ifelse(test_set$Pclass == 1 & class_survival_rate$Survived[class_survival_rate$Pclass == 1] > 0.5, 1,
+                                  ifelse(test_set$Pclass == 2 & class_survival_rate$Survived[class_survival_rate$Pclass == 2] > 0.5, 1,
+                                         ifelse(test_set$Pclass == 3 & class_survival_rate$Survived[class_survival_rate$Pclass == 3] > 0.5, 1, 0))), 
+                            levels = c(0, 1))
+combined_model_pred <- factor(test_set %>%
+                                  left_join(sex_class_survival_rate, by = c("Sex", "Pclass")) %>%
+                                  mutate(Predicted = ifelse(SurvivalRate > 0.5, 1, 0)) %>%
+                                  pull(Predicted), 
+                              levels = c(0, 1))
+
+# Convert test set survival to factor
+test_set$Survived <- factor(test_set$Survived, levels = c(0, 1))
+
+# Calculate F1 scores for each model
+sex_model_f1 <- F_meas(data = sex_model_pred, reference = test_set$Survived)
+class_model_f1 <- F_meas(data = class_model_pred, reference = test_set$Survived)
+combined_model_f1 <- F_meas(data = combined_model_pred, reference = test_set$Survived)
+
+# Output F1 scores
+cat("F1 Score for Sex Model:", sex_model_f1, "\n")
+cat("F1 Score for Class Model:", class_model_f1, "\n")
+cat("F1 Score for Combined Sex and Class Model:", combined_model_f1, "\n")
+
+
+## train a Loess model using the caret gamLoess with fare as the only predictor, and then calculate the accuracy on the test set
+set.seed(1) 
+train_loess <- train(Survived ~ Fare, method = "gamLoess", data = train_set)
+loess_preds <- predict(train_loess, test_set)
+mean(loess_preds == test_set$Survived)
+
+
+## training logistic regression models using the caret gim with different sets of predictors, and calculating their accuracies on the test set
+# Load necessary library
+library(caret)
+
+# Set the seed for reproducibility
+set.seed(1)
+
+# Logistic Regression Model 1: Age as the only predictor
+logistic_age_model <- train(
+    Survived ~ Age,
+    data = train_set,
+    method = "glm",
+    family = "binomial"
+)
+# Predict and calculate accuracy for Model 1
+age_predictions <- predict(logistic_age_model, newdata = test_set)
+age_accuracy <- mean(age_predictions == test_set$Survived)
+cat("Accuracy of the logistic regression model (Age only):", age_accuracy, "\n")
+
+# Logistic Regression Model 2: Four predictors (sex, class, fare, age)
+logistic_four_model <- train(
+    Survived ~ Sex + Pclass + Fare + Age,
+    data = train_set,
+    method = "glm",
+    family = "binomial"
+)
+# Predict and calculate accuracy for Model 2
+four_predictions <- predict(logistic_four_model, newdata = test_set)
+four_accuracy <- mean(four_predictions == test_set$Survived)
+cat("Accuracy of the logistic regression model (Sex, Class, Fare, Age):", four_accuracy, "\n")
+
+# Logistic Regression Model 3: All predictors
+logistic_all_model <- train(
+    Survived ~ .,
+    data = train_set,
+    method = "glm",
+    family = "binomial"
+)
+# Predict and calculate accuracy for Model 3
+all_predictions <- predict(logistic_all_model, newdata = test_set)
+all_accuracy <- mean(all_predictions == test_set$Survived)
+cat("Accuracy of the logistic regression model (All predictors):", all_accuracy, "\n")
+
+
+## train a kNN model using 10-fold cross-validation, tune the number of neighbors k, and calculate accuracy on the test set:
+# Load necessary library
+library(caret)
+
+# Set the seed for reproducibility
+set.seed(8)
+
+# Define the range of k to tune
+k_values <- seq(3, 51, 2)
+
+# Train a kNN model with 10-fold cross-validation
+knn_cv_model <- train(
+    Survived ~ .,
+    data = train_set,
+    method = "knn",
+    tuneGrid = data.frame(k = k_values),
+    trControl = trainControl(method = "cv", number = 10)  # 10-fold cross-validation
+)
+
+# Optimal k value
+optimal_k_cv <- knn_cv_model$bestTune$k
+cat("Optimal value of k using cross-validation:", optimal_k_cv, "\n")
+
+# Predict and calculate accuracy on the test set
+knn_cv_predictions <- predict(knn_cv_model, newdata = test_set)
+knn_cv_accuracy <- mean(knn_cv_predictions == test_set$Survived)
+cat("Accuracy of the kNN model on the test set:", knn_cv_accuracy, "\n")
+
+
+## train a decision tree using the rpart method, tune the complexity parameter (cp), and calculate accuracy on the test set
+# Load necessary library
+library(caret)
+
+# Set the seed for reproducibility
+set.seed(10)
+
+# Define the range of cp to tune
+cp_values <- seq(0, 0.05, 0.002)
+
+# Train a decision tree model with cp tuning
+decision_tree_model <- train(
+    Survived ~ .,
+    data = train_set,
+    method = "rpart",
+    tuneGrid = data.frame(cp = cp_values),
+    trControl = trainControl(method = "cv", number = 10)  # 10-fold cross-validation
+)
+
+# Optimal cp value
+optimal_cp <- decision_tree_model$bestTune$cp
+cat("Optimal value of the complexity parameter (cp):", optimal_cp, "\n")
+
+# Predict and calculate accuracy on the test set
+tree_predictions <- predict(decision_tree_model, newdata = test_set)
+tree_accuracy <- mean(tree_predictions == test_set$Survived)
+cat("Accuracy of the decision tree model on the test set:", tree_accuracy, "\n")
+
+
+## inspect the final decision tree model and plot it to determine which variables are used
+# Load necessary libraries
+library(rpart.plot)  # For plotting decision trees
+
+# Inspect the final decision tree model
+print(decision_tree_model$finalModel)
+
+# Plot the decision tree
+rpart.plot(decision_tree_model$finalModel, type = 3, extra = 101, under = TRUE)
+
+# Variables used in the decision tree
+cat("Variables used in the decision tree:\n")
+print(decision_tree_model$finalModel$frame$var[decision_tree_model$finalModel$frame$var != "<leaf>"])
