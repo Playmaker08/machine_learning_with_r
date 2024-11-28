@@ -1,0 +1,45 @@
+# Load necessary library
+library(rpart)
+library(ggplot2)
+library(dplyr)
+
+# Create the dataset
+n <- 1000
+sigma <- 0.25
+set.seed(1)
+x <- rnorm(n, 0, 1)
+y <- 0.75 * x + rnorm(n, 0, sigma)
+dat <- data.frame(x = x, y = y)
+
+# Fit a regression tree
+fit <- rpart(y ~ ., data = dat)
+
+# Display the results
+print(fit)       # Summary of the fitted tree
+plot(fit)        # Plot the tree structure
+text(fit, pretty = 0) # Add labels to the tree
+
+# Create scatter plot with predictions
+dat %>% 
+  mutate(y_hat = predict(fit)) %>% 
+  ggplot() +
+  geom_point(aes(x, y)) +
+  geom_step(aes(x, y_hat), col=2)
+
+## Instead of regression tree, do the Random Forest model
+
+# Fit Random Forest model
+fit <- randomForest(y ~ x, data = dat)
+
+# Create scatter plot with predictions
+dat %>% 
+  mutate(y_hat = predict(fit)) %>% 
+  ggplot() +
+  geom_point(aes(x, y)) +
+  geom_step(aes(x, y_hat), col = "red")
+
+# plot the convergence graph for the Random Forest model
+plot(fit)
+
+# Fit Random Forest model with specified parameters
+fit <- randomForest(y ~ x, data = dat, nodesize = 50, maxnodes = 25)
