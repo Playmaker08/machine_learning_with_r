@@ -1,0 +1,257 @@
+## Here is the equivalent R code to fit a classification tree using the rpart package and caret::train with cp values from seq(0, 0.1, 0.01):
+# Load necessary libraries
+library(caret)
+library(rpart)
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(1991)
+
+# Simulate tissue_gene_expression dataset
+# Assuming 1000 samples with 10 gene expressions as features
+X <- matrix(runif(1000 * 10), ncol = 10)
+y <- sample(0:1, 1000, replace = TRUE)
+data <- data.frame(X, y = as.factor(y))
+
+# Create train-test split
+train_index <- createDataPartition(data$y, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Define the control and grid for tuning
+train_control <- trainControl(method = "cv", number = 10)
+tune_grid <- expand.grid(cp = seq(0, 0.1, 0.01))
+
+# Train the model
+model <- train(
+  y ~ ., 
+  data = train_data, 
+  method = "rpart", 
+  trControl = train_control, 
+  tuneGrid = tune_grid
+)
+
+# Print the best model
+print(model$bestTune)
+
+# Predict on test data
+predictions <- predict(model, test_data)
+accuracy <- mean(predictions == test_data$y)
+
+# Plot the accuracy vs cp values
+results <- model$results
+ggplot(results, aes(x = cp, y = Accuracy)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Accuracy vs Complexity Parameter (cp)",
+       x = "cp",
+       y = "Accuracy") +
+  theme_minimal()
+
+# Output the best cp and accuracy
+cat("Best cp:", model$bestTune$cp, "\n")
+cat("Accuracy:", accuracy, "\n")
+
+
+## Here’s the R code to rerun the analysis using caret::train() with method = "rpart" and modifying the control parameter to rpart.control(minsplit = 0):
+# Load necessary libraries
+library(caret)
+library(rpart)
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(1991)
+
+# Simulate tissue_gene_expression dataset
+# Assuming 1000 samples with 10 gene expressions as features
+X <- matrix(runif(1000 * 10), ncol = 10)
+y <- sample(0:1, 1000, replace = TRUE)
+data <- data.frame(X, y = as.factor(y))
+
+# Create train-test split
+train_index <- createDataPartition(data$y, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Define the control and grid for tuning
+train_control <- trainControl(method = "cv", number = 10)
+tune_grid <- expand.grid(cp = seq(0, 0.1, 0.01))
+
+# Train the model with minsplit = 0
+model <- train(
+  y ~ ., 
+  data = train_data, 
+  method = "rpart", 
+  trControl = train_control, 
+  tuneGrid = tune_grid,
+  control = rpart.control(minsplit = 0)
+)
+
+# Print the best model
+print(model$bestTune)
+
+# Predict on test data
+predictions <- predict(model, test_data)
+conf_matrix <- confusionMatrix(predictions, test_data$y)
+accuracy <- conf_matrix$overall["Accuracy"]
+
+# Output the confusion matrix and accuracy
+print(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+
+## Load the rpart package and then use the caret::train() function with method = "rpart" to fit a classification tree to the tissue_gene_expression dataset. Try out cp values of seq(0, 0.1, 0.01). Plot the accuracies to report the results of the best model. Set the seed to 1991. Which value of cp gives the highest accuracy?
+# Load necessary libraries
+library(caret)
+library(rpart)
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(1991)
+
+# Simulate tissue_gene_expression dataset
+# Assuming 1000 samples with 10 gene expressions as features
+X <- matrix(runif(1000 * 10), ncol = 10)
+y <- sample(0:1, 1000, replace = TRUE)
+data <- data.frame(X, y = as.factor(y))
+
+# Create train-test split
+train_index <- createDataPartition(data$y, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Define the control and grid for tuning
+train_control <- trainControl(method = "cv", number = 10)
+tune_grid <- expand.grid(cp = seq(0, 0.1, 0.01))
+
+# Train the model
+model <- train(
+  y ~ ., 
+  data = train_data, 
+  method = "rpart", 
+  trControl = train_control, 
+  tuneGrid = tune_grid
+)
+
+# Print the best model
+print(model$bestTune)
+
+# Predict on test data
+predictions <- predict(model, test_data)
+accuracy <- mean(predictions == test_data$y)
+
+# Plot the accuracy vs cp values
+results <- model$results
+ggplot(results, aes(x = cp, y = Accuracy)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Accuracy vs Complexity Parameter (cp)",
+       x = "cp",
+       y = "Accuracy") +
+  theme_minimal()
+
+# Output the best cp and accuracy
+cat("Best cp:", model$bestTune$cp, "\n")
+cat("Accuracy on test data:", accuracy, "\n")
+
+
+## Here is the R code to rerun the analysis using caret::train() with method = "rpart" and setting control = rpart.control(minsplit = 0):
+# Load necessary libraries
+library(caret)
+library(rpart)
+library(ggplot2)
+
+# Set seed for reproducibility
+set.seed(1991)
+
+# Simulate tissue_gene_expression dataset
+# Assuming 1000 samples with 10 gene expressions as features
+X <- matrix(runif(1000 * 10), ncol = 10)
+y <- sample(0:1, 1000, replace = TRUE)
+data <- data.frame(X, y = as.factor(y))
+
+# Create train-test split
+train_index <- createDataPartition(data$y, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Define the control and grid for tuning
+train_control <- trainControl(method = "cv", number = 10)
+tune_grid <- expand.grid(cp = seq(0, 0.1, 0.01))
+
+# Train the model with minsplit = 0
+model <- train(
+  y ~ ., 
+  data = train_data, 
+  method = "rpart", 
+  trControl = train_control, 
+  tuneGrid = tune_grid,
+  control = rpart.control(minsplit = 0)
+)
+
+# Print the best model
+print(model$bestTune)
+
+# Predict on test data
+predictions <- predict(model, test_data)
+conf_matrix <- confusionMatrix(predictions, test_data$y)
+accuracy <- conf_matrix$overall["Accuracy"]
+
+# Output the confusion matrix and accuracy
+print(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+# Plot the accuracy vs cp values
+results <- model$results
+ggplot(results, aes(x = cp, y = Accuracy)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Accuracy vs Complexity Parameter (cp)",
+       x = "cp",
+       y = "Accuracy") +
+  theme_minimal()
+
+
+## Here is the R code to train a Random Forest model using the caret::train() function and determine the value of mtry that maximizes accuracy:
+# Load necessary libraries
+library(caret)
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(1991)
+
+# Simulate tissue_gene_expression dataset
+X <- matrix(runif(1000 * 10), ncol = 10)
+colnames(X) <- c("B3GNT4", "CAPN3", "CES2", "CFHR4", "CLIP3", "GPA33", "HRH1", "GENE8", "GENE9", "GENE10")
+y <- sample(0:1, 1000, replace = TRUE)
+data <- data.frame(X, y = as.factor(y))
+
+# Create train-test split
+train_index <- createDataPartition(data$y, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+
+# Define the control and grid for tuning
+train_control <- trainControl(method = "cv", number = 10)
+tune_grid <- expand.grid(mtry = seq(50, 200, 25))
+
+# Train the Random Forest model
+fit <- train(
+  y ~ ., 
+  data = train_data, 
+  method = "rf", 
+  trControl = train_control, 
+  tuneGrid = tune_grid,
+  nodesize = 1
+)
+
+# Print the best mtry value and model performance
+print(fit$bestTune)
+print(fit)
+
+# Predict on test data
+predictions <- predict(fit, test_data)
+accuracy <- mean(predictions == test_data$y)
+
+# Output the accuracy on the test set
+cat("Test Accuracy:", accuracy, "\n")
