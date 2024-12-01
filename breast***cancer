@@ -1,0 +1,258 @@
+## INTRODUCTION: The brca dataset from the dslabs package contains information about breast cancer diagnosis biopsy samples for tumors that were determined to be either benign (not cancer) and malignant (cancer). The brca object is a list consisting of:
+
+brca$y: a vector of sample classifications ("B" = benign or "M" = malignant)
+brca$x: a matrix of numeric features describing properties of the shape and size of cell nuclei extracted from biopsy microscope images
+
+
+options(digits = 3)
+library(matrixStats)
+library(tidyverse)
+library(caret)
+library(dslabs)
+data(brca)
+
+# Access the predictors and outcomes
+x <- brca$x
+y <- brca$y
+
+# 1. Number of samples
+n_samples <- nrow(x)
+n_samples
+
+# 2. Number of predictors
+n_predictors <- ncol(x)
+n_predictors
+
+# 3. Proportion of malignant samples
+prop_malignant <- mean(y == "M")
+prop_malignant
+
+# 4. Column number with the highest mean
+highest_mean_col <- which.max(colMeans(x))
+highest_mean_col
+
+# 5. Column number with the lowest standard deviation
+lowest_sd_col <- which.min(colSds(x))
+lowest_sd_col
+
+# 6. Subtract the column means
+scaled_x <- sweep(brca$x, 2, colMeans(brca$x), FUN = "-")
+
+# 7. Divide by the column standard deviations
+scaled_x <- sweep(scaled_x, 2, colSds(brca$x), FUN = "/")
+
+# 8. Standard deviation of the first column
+std_dev_first_col <- sd(scaled_x[, 1])
+std_dev_first_col
+
+# 9. Median of the first column
+median_first_col <- median(scaled_x[, 1])
+median_first_col
+
+# 10. Perform PCA on the scaled matrix
+pca_result <- prcomp(scaled_x, center = FALSE, scale. = FALSE)
+
+# 11. Proportion of variance explained by the first principal component
+var_explained <- (pca_result$sdev^2) / sum(pca_result$sdev^2)
+prop_variance_pc1 <- var_explained[1]
+prop_variance_pc1
+
+# 12. Number of principal components required to explain at least 90% of the variance
+cum_var_explained <- cumsum(var_explained)
+num_pc_90 <- which(cum_var_explained >= 0.90)[1]
+num_pc_90
+
+# 13. Create a data frame with the first two principal components and tumor type
+pca_data <- data.frame(
+  PC1 = pca_result$x[, 1],
+  PC2 = pca_result$x[, 2],
+  TumorType = brca$y
+)
+
+# 14. Plot the first two principal components
+library(ggplot2)
+ggplot(pca_data, aes(x = PC1, y = PC2, color = TumorType)) +
+  geom_point(alpha = 0.7) +
+  labs(title = "PCA: First Two Principal Components",
+       x = "Principal Component 1",
+       y = "Principal Component 2") +
+  theme_minimal() +
+  scale_color_manual(values = c("B" = "blue", "M" = "red"))
+
+=> Result: Malignant tumors tend to have larger values of PC1 than benign tumors.
+
+
+# 15. Create a data frame with the first 10 PCs and tumor type
+pc_data <- data.frame(
+  PC1 = pca_result$x[, 1],
+  PC2 = pca_result$x[, 2],
+  PC3 = pca_result$x[, 3],
+  PC4 = pca_result$x[, 4],
+  PC5 = pca_result$x[, 5],
+  PC6 = pca_result$x[, 6],
+  PC7 = pca_result$x[, 7],
+  PC8 = pca_result$x[, 8],
+  PC9 = pca_result$x[, 9],
+  PC10 = pca_result$x[, 10],
+  TumorType = brca$y
+)
+
+# Reshape data for plotting
+pc_data_long <- pc_data %>%
+  pivot_longer(cols = starts_with("PC"), names_to = "PrincipalComponent", values_to = "Value")
+
+# Boxplot of the first 10 PCs grouped by tumor type
+library(ggplot2)
+ggplot(pc_data_long, aes(x = TumorType, y = Value, fill = TumorType)) +
+  geom_boxplot(alpha = 0.7) +
+  facet_wrap(~ PrincipalComponent, scales = "free_y") +
+  labs(title = "Boxplots of First 10 Principal Components by Tumor Type",
+       x = "Tumor Type", y = "PC Value") +
+  theme_minimal() +
+  scale_fill_manual(values = c("B" = "blue", "M" = "red"))
+
+# Identify PCs with no overlap in IQRs
+no_overlap_pcs <- sapply(pc_data[, 1:10], function(pc) {
+  benign_iqr <- quantile(pc[pc_data$TumorType == "B"], probs = c(0.25, 0.75))
+  malignant_iqr <- quantile(pc[pc_data$TumorType == "M"], probs = c(0.25, 0.75))
+  benign_iqr[2] < malignant_iqr[1] || benign_iqr[1] > malignant_iqr[2]
+})
+
+# Names of PCs with no overlap
+names(no_overlap_pcs)[no_overlap_pcs]
+
+=> Result: PC1 is significantly different enough by tumor type that there is no overlap in the interquartile ranges (IQRs) for benign and malignant samples.
+
+
+## UPDATE: Set the seed to 1, then create a data partition splitting brca$y and the scaled version of the brca$x matrix into a 20% test set and 80% train using the following code:
+
+set.seed(1) 
+test_index <- createDataPartition(brca$y, times = 1, p = 0.2, list = FALSE)
+test_x <- x_scaled[test_index,]
+test_y <- brca$y[test_index]
+train_x <- x_scaled[-test_index,]
+train_y <- brca$y[-test_index]
+
+
+16. check the proportions of benign tumors in the training and test sets
+# Ensure the scaled matrix is correctly created
+scaled_x <- sweep(brca$x, 2, colMeans(brca$x), FUN = "-")
+scaled_x <- sweep(scaled_x, 2, colSds(brca$x), FUN = "/")
+
+# Set seed for reproducibility and create data partitions
+set.seed(1)
+test_index <- createDataPartition(brca$y, times = 1, p = 0.2, list = FALSE)
+test_x <- scaled_x[test_index, ]
+test_y <- brca$y[test_index]
+train_x <- scaled_x[-test_index, ]
+train_y <- brca$y[-test_index]
+
+# Calculate proportions of benign tumors in training and test sets
+prop_benign_train <- mean(train_y == "B")
+prop_benign_test <- mean(test_y == "B")
+
+# Display the proportions
+prop_benign_train
+prop_benign_test
+
+
+17. fit a logistic regression model on the training set, make predictions, and calculate the accuracy on the test set
+# Load caret package
+library(caret)
+
+# Set seed for reproducibility
+set.seed(1)
+
+# Train logistic regression model
+logistic_model <- train(
+  train_x, train_y,
+  method = "glm",
+  family = "binomial"
+)
+
+# Make predictions on the test set
+test_predictions <- predict(logistic_model, test_x)
+
+# Calculate accuracy on the test set
+logistic_accuracy <- mean(test_predictions == test_y)
+logistic_accuracy
+
+
+18. fit a Loess Model using the caret package and calculate the test set accuracy
+# Install the gam package if not already installed
+if (!requireNamespace("gam", quietly = TRUE)) {
+  install.packages("gam")
+}
+
+# Set seed for reproducibility
+set.seed(5)
+
+# Train the loess model using caret
+loess_model <- train(
+  train_x, train_y,
+  method = "gamLoess",
+  trControl = trainControl(method = "cv")
+)
+
+# Generate predictions on the test set
+loess_predictions <- predict(loess_model, test_x)
+
+# Calculate accuracy on the test set
+loess_accuracy <- mean(loess_predictions == test_y)
+loess_accuracy
+
+
+19. train a k-Nearest Neighbors (kNN) model using the caret package, find the best k, and compute the accuracy on the test set
+# find best k          
+set.seed(7)
+tuning <- data.frame(k = seq(3, 21, 2))
+train_knn <- train(train_x, train_y,
+      method = "knn", 
+      tuneGrid = tuning)
+train_knn$bestTune
+
+# Generate predictions on the test set
+knn_predictions <- predict(knn_model, test_x)
+
+# Calculate accuracy on the test set
+knn_accuracy <- mean(knn_predictions == test_y)
+print(paste("Accuracy on test set:", knn_accuracy))   
+
+
+20. train a random forest model using the caret package, determine the optimal mtry, calculate the test set accuracy, and identify the most important variable
+# Load necessary library
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(9)
+
+# Define the tuning grid for mtry
+tuning_grid <- expand.grid(mtry = c(3, 5, 7, 9))
+
+# Train the random forest model
+rf_model <- train(
+  train_x, train_y,
+  method = "rf",
+  tuneGrid = tuning_grid,
+  trControl = trainControl(method = "cv", number = 10), # 10-fold cross-validation
+  importance = TRUE
+)
+
+# Find the best mtry value
+best_mtry <- rf_model$bestTune$mtry
+print(paste("Best mtry:", best_mtry))
+
+# Generate predictions on the test set
+rf_predictions <- predict(rf_model, test_x)
+
+# Calculate accuracy on the test set
+rf_accuracy <- mean(rf_predictions == test_y)
+print(paste("Accuracy on test set:", rf_accuracy))
+
+# Extract variable importance
+var_importance <- varImp(rf_model, scale = FALSE)
+print(var_importance)
+
+# Identify the most important variable
+most_important_variable <- rownames(var_importance$importance)[which.max(var_importance$importance$Overall)]
+most_important_variable
