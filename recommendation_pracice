@@ -1,0 +1,65 @@
+## compute the number of ratings for each movie, plot a boxplot with a square root transformation of the number of ratings
+movielens %>% group_by(movieId) %>%
+	summarize(n = n(), year = as.character(first(year))) %>%
+	qplot(year, n, data = ., geom = "boxplot") +
+	coord_trans(y = "sqrt") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+## The top 25 movies with the most ratings per year, along with their average ratings, can be found using the following
+movielens %>% 
+	filter(year >= 1993) %>%
+	group_by(movieId) %>%
+	summarize(n = n(), years = 2018 - first(year),
+				title = title[1],
+				rating = mean(rating)) %>%
+	mutate(rate = n/years) %>%
+	top_n(25, rate) %>%
+	arrange(desc(rate))
+
+
+## Make a plot of average rating versus ratings per year and show an estimate of the trend.
+     movielens %>% 
+	filter(year >= 1993) %>%
+	group_by(movieId) %>%
+	summarize(n = n(), years = 2018 - first(year),
+				title = title[1],
+				rating = mean(rating)) %>%
+	mutate(rate = n/years) %>%
+	ggplot(aes(rate, rating)) +
+	geom_point() +
+	geom_smooth()
+
+
+## process the genres column, filter categories with more than 1,000 ratings, compute the average and standard error, and create an error bar plot
+library(tidyverse)
+library(dslabs)
+
+# Load the data
+data("movielens")
+
+# Process the data
+genre_stats <- movielens %>%
+  group_by(genres) %>%  # Group by genre categories
+  summarize(
+    n = n(),  # Count the number of ratings
+    avg_rating = mean(rating),  # Compute average rating
+    se_rating = sd(rating) / sqrt(n)  # Compute standard error
+  ) %>%
+  filter(n > 1000) %>%  # Keep categories with more than 1,000 ratings
+  arrange(avg_rating)  # Sort by average rating
+
+# Plot the data
+genre_stats %>%
+  ggplot(aes(x = reorder(genres, avg_rating), y = avg_rating)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = avg_rating - se_rating, ymax = avg_rating + se_rating), width = 0.2) +
+  coord_flip() +  # Flip the axes for better readability
+  labs(
+    x = "Genres",
+    y = "Average Rating",
+    title = "Average Ratings by Genre with Standard Error"
+  ) +
+  theme_minimal()
+
+
